@@ -12,7 +12,8 @@
         "swiftmailer/swiftmailer": "^5.4",
         "davibennun/laravel-push-notification": "dev-laravel5",
 	"jenssegers/agent":"^2.3",
-	"barryvdh/laravel-cors":"0.8.0"
+	"barryvdh/laravel-cors":"0.8.0",
+"dingo/api": "1.0.*@dev"
     },
     "require-dev": {
         "fzaninotto/faker": "~1.4",

@@ -1,33 +1,42 @@
 #!/usr/bin/env php
 <?php
+
 foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $file) {
     if (file_exists($file)) {
         require $file;
         break;
     }
 }
+
 ini_set('xdebug.max_nesting_level', 3000);
+
 // Disable XDebug var_dump() output truncation
 ini_set('xdebug.var_display_max_children', -1);
 ini_set('xdebug.var_display_max_data', -1);
 ini_set('xdebug.var_display_max_depth', -1);
+
 list($operations, $files, $attributes) = parseArgs($argv);
+
 /* Dump nodes by default */
 if (empty($operations)) {
     $operations[] = 'dump';
 }
+
 if (empty($files)) {
     showHelp("Must specify at least one file.");
 }
+
 $lexer = new PhpParser\Lexer\Emulative(array('usedAttributes' => array(
-    'startLine', 'endLine', 'startFilePos', 'endFilePos'
+    'startLine', 'endLine', 'startFilePos', 'endFilePos', 'comments'
 )));
 $parser = (new PhpParser\ParserFactory)->create(PhpParser\ParserFactory::PREFER_PHP7, $lexer);
-$dumper = new PhpParser\NodeDumper;
+$dumper = new PhpParser\NodeDumper(['dumpComments' => true]);
 $prettyPrinter = new PhpParser\PrettyPrinter\Standard;
 $serializer = new PhpParser\Serializer\XML;
+
 $traverser = new PhpParser\NodeTraverser();
 $traverser->addVisitor(new PhpParser\NodeVisitor\NameResolver);
+
 foreach ($files as $file) {
     if (strpos($file, '<?php') === 0) {
         $code = $file;
@@ -36,9 +45,11 @@ foreach ($files as $file) {
         if (!file_exists($file)) {
             die("File $file does not exist.\n");
         }
+
         $code = file_get_contents($file);
         echo "====> File $file:\n";
     }
+
     try {
         $stmts = $parser->parse($code);
     } catch (PhpParser\Error $e) {
@@ -51,8 +62,10 @@ foreach ($files as $file) {
         } else {
             $message = $e->getMessage();
         }
+
         die($message . "\n");
     }
+
     foreach ($operations as $operation) {
         if ('dump' === $operation) {
             echo "==> Node dump:\n";
@@ -72,31 +85,43 @@ foreach ($files as $file) {
         }
     }
 }
-function showHelp($error) {
-    die($error . "\n\n" .
-        <<<OUTPUT
+
+function showHelp($error = '') {
+    if ($error) {
+        echo $error . "\n\n";
+    }
+    die(<<<OUTPUT
 Usage: php-parse [operations] file1.php [file2.php ...]
    or: php-parse [operations] "<?php code"
 Turn PHP source code into an abstract syntax tree.
+
 Operations is a list of the following options (--dump by default):
+
     -d, --dump              Dump nodes using NodeDumper
     -p, --pretty-print      Pretty print file using PrettyPrinter\Standard
         --serialize-xml     Serialize nodes using Serializer\XML
         --var-dump          var_dump() nodes (for exact structure)
     -N, --resolve-names     Resolve names using NodeVisitor\NameResolver
     -c, --with-column-info  Show column-numbers for errors (if available)
+    -h, --help              Display this page
+
 Example:
     php-parse -d -p -N -d file.php
+
     Dumps nodes, pretty prints them, then resolves names and dumps them again.
+
+
 OUTPUT
     );
 }
+
 function parseArgs($args) {
     $operations = array();
     $files = array();
     $attributes = array(
         'with-column-info' => false,
     );
+
     array_shift($args);
     $parseOptions = true;
     foreach ($args as $arg) {
@@ -104,6 +129,7 @@ function parseArgs($args) {
             $files[] = $arg;
             continue;
         }
+
         switch ($arg) {
             case '--dump':
             case '-d':
@@ -127,6 +153,10 @@ function parseArgs($args) {
             case '-c';
                 $attributes['with-column-info'] = true;
                 break;
+            case '--help':
+            case '-h';
+                showHelp();
+                break;
             case '--':
                 $parseOptions = false;
                 break;
@@ -138,5 +168,6 @@ function parseArgs($args) {
                 }
         }
     }
+
     return array($operations, $files, $attributes);
 }
